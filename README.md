@@ -55,7 +55,9 @@ Party is registration, not vote choice. `county` is `ALL` on statewide rows (UF)
 
 ## Final totals (EAVS)
 
-`earlyvote.eavs.load()` returns one row per jurisdiction and cycle (2014 to 2024): total turnout, Election Day, early in person, mail (domestic plus all-mail jurisdictions), UOCAVA, provisional. It is the denominator for "share of 2022 turnout" and the final early vote for cycles with no daily history. Jurisdictions are towns in CT, MA, RI, VT, and WI, so those do not join to county rows. NC's voter file counts about 4% more in-person early votes than EAVS for 2022.
+`earlyvote.eavs.load()` returns one row per jurisdiction and cycle (2014 to 2024): total turnout, Election Day, early in person, mail (domestic plus all-mail jurisdictions), UOCAVA, provisional. It is the denominator for "share of 2022 turnout" and the final early vote for cycles with no daily history. NC's voter file counts about 4% more in-person early votes than EAVS for 2022.
+
+`earlyvote.geo` joins tracker places to EAVS. EAVS jurisdictions are towns in New England, municipalities in Wisconsin, and a few separate cities (Chicago); each is allocated to counties by its FIPS code or, when it spans counties, by the Census 2022 population split (`sub-est2024.csv`, no key needed). Names match strictly first, then with spelling fixes (Saint/St, burgh/burg, &/and), then without TOWN/CITY, then by a unique 10-letter prefix (EAVS truncates some names). Town lists match only towns; county lists try county names before loose town names. Matched 2022 turnout covers at least 97% of every state with county data except where EAVS left a county blank (AR, KS, UT). Connecticut uses its eight pre-2022 counties to match EAVS and the map shapes.
 
 ## Report
 

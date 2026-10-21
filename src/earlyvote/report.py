@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from earlyvote import ROOT, eavs, tidy, uf
+from earlyvote import ROOT, eavs, geo, tidy, uf
 from earlyvote.elections import GENERALS
 from earlyvote.tidy import STATEWIDE
 
@@ -44,6 +44,17 @@ def latest_counties(df: pd.DataFrame, cycle: int) -> pd.DataFrame:
     return wide(df, ["state", "county", "days_out", "as_of", "source"])
 
 
+def county_rollup(rows: pd.DataFrame, names: pd.Series) -> pd.DataFrame:
+    """Tracker places (towns, cities, counties) summed into counties by their population shares."""
+    cols = ["total", "turn2022", "DEM", "REP", "OTH"]
+    parts = rows[rows["turn2022"] > 0].explode("parts").dropna(subset=["parts"])
+    if parts.empty:
+        return pd.DataFrame(columns=["fips5", "name", *cols])
+    share = parts["parts"].str[1].astype(float)
+    out = parts[cols].mul(share, axis=0).groupby(parts["parts"].str[0].rename("fips5")).sum().reset_index()
+    return out.assign(name=out["fips5"].map(names).fillna(out["fips5"]))
+
+
 def turnout_2022() -> dict[str, dict]:
     fetched, path = uf.snapshots(2026, "US.csv")[-1]
     us = uf.read(path)
@@ -66,7 +77,7 @@ def payload() -> dict:
 
     ev_final = finals.assign(early=finals["early_in_person"].fillna(0) + finals["mail"].fillna(0))
     state_finals = ev_final.groupby(["state", "cycle"])[["total", "early"]].sum()
-    county_finals = ev_final.assign(key=ev_final["county"].map(tidy.county_key), fips5=ev_final["fips"].str[:5])
+    places = geo.Geography(finals[finals["cycle"] == 2022])
 
     nc_counties = df[df["source"] == "ncsbe_absentee"]
     nc_curves = (nc_counties[nc_counties["mode"].isin(EARLY)]
@@ -80,12 +91,10 @@ def payload() -> dict:
             continue
         last = cur.loc[cur["days_out"].idxmin()]
         party_reg = st in tidy.PARTY_REGISTRATION and bool(last[["DEM", "REP"]].sum() > 0)
-        cf = county_finals[(county_finals["state"] == st) & (county_finals["cycle"] == 2022)].set_index("key")
-        cty = counties[counties["state"] == st].copy()
-        cty["key"] = cty["county"].map(tidy.county_key)
-        cty["county"] = cty["county"].astype(str).where(~cty["county"].astype(str).str.isupper(),
-                                                        cty["county"].astype(str).str.title())
-        cty = cty.join(cf[["fips5", "total"]].rename(columns={"total": "turn2022"}), on="key")
+        cty = counties[counties["state"] == st].reset_index(drop=True)
+        cty["county"] = cty["county"].astype(str)
+        cty = cty.join(places.place(st, cty["county"]))
+        cty["county"] = cty["county"].where(~cty["county"].str.isupper(), cty["county"].str.title())
         out[st] = {
             "name": meta["name"],
             "turn2022": meta["turn2022"],
@@ -98,9 +107,10 @@ def payload() -> dict:
                        for c, g in s.groupby("cycle")},
             "finals": {int(c): {"early": int(r.early), "total": int(r.total)}
                        for (_, c), r in state_finals.loc[[st]].iterrows()} if st in state_finals.index else {},
-            "counties": records(cty.fillna({"fips5": "", "turn2022": 0}),
-                                ["county", "fips5", "turn2022", "total", "mail_returned", "in_person_early",
-                                 "DEM", "REP", "OTH"]),
+            "counties": records(cty, ["county", "turn2022", "total", "mail_returned", "in_person_early",
+                                      "DEM", "REP", "OTH"]),
+            "countyMap": records(county_rollup(cty, places.names), ["fips5", "name", "total", "turn2022",
+                                                                    "DEM", "REP", "OTH"]),
             "countySource": cty["source"].iloc[0] if len(cty) else None,
             "countyAsOf": str(cty["as_of"].iloc[0]) if len(cty) else None,
         }

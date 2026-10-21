@@ -366,25 +366,29 @@ async function drawCounties() {
   const sec = document.getElementById("countySection");
   sec.hidden = !s.counties.length;
   if (!s.counties.length) return;
-  const rows = s.counties.map(([name, fips, turn, total, mail, inp, D, R, O]) => ({ name, fips, turn, total, mail, inp, sh: partyShares({ DEM: D, REP: R, OTH: O }) }));
-  document.getElementById("countyTitle").textContent = `${s.name} by county`;
+  const rows = s.counties.map(([name, turn, total, mail, inp, D, R, O]) => ({ name, turn, total, mail, inp, sh: partyShares({ DEM: D, REP: R, OTH: O }) }));
+  const towns = rows.length > 1.5 * s.countyMap.length && s.countyMap.length > 0;
+  document.getElementById("countyTitle").textContent = `${s.name} by ${towns ? "town" : "county"}`;
   const srcName = { ncsbe_absentee: "NC State Board voter file", fl_dos: "Florida Division of Elections", uf_tracker: "UF Election Lab" }[s.countySource];
+  const unmatched = rows.filter(r => !r.turn).length;
   document.getElementById("countyNote").textContent = `Early votes through ${s.countyAsOf}, as a share of 2022 total turnout (EAVS). Source: ${srcName}.` +
+    (towns ? " The table lists towns; the map adds them up by county." : "") +
+    (unmatched ? ` ${unmatched} ${towns ? "towns" : "places"} could not be matched to 2022 turnout and are left off the map.` : "") +
     (s.countyCurves ? " Click a county for its trend." : "");
   table(document.getElementById("countyTable"), [
-    { h: "County", v: r => r.name }, { h: "Early votes", v: r => r.total, f: fmt },
+    { h: towns ? "Town" : "County", v: r => r.name }, { h: "Early votes", v: r => r.total, f: fmt },
     { h: "% of 2022", v: r => r.turn ? pct(r.total, r.turn) : -1, f: v => v < 0 ? "–" : fmtPct(v) },
     { h: "Mail", v: r => r.mail, f: fmt }, { h: "In person", v: r => r.inp, f: fmt },
     ...(s.partyReg ? [{ h: "Dem %", v: r => r.sh ? r.sh.DEM : -1, f: v => v < 0 ? "–" : fmtPct(v) },
                       { h: "Rep %", v: r => r.sh ? r.sh.REP : -1, f: v => v < 0 ? "–" : fmtPct(v) }] : []),
   ], rows, s.countyCurves ? pickCounty : null, () => state.county);
 
-  const mapped = rows.filter(r => r.fips && r.turn);
+  const mapped = s.countyMap.map(([fips, name, total, turn, D, R, O]) => ({ fips, name, total, turn, sh: partyShares({ DEM: D, REP: R, OTH: O }) }));
   const mapEl = document.getElementById("countyMap");
   const g = mapped.length ? await geo() : null;
-  if (!g) { Plotly.purge(mapEl); mapEl.innerHTML = `<p class="note">${mapped.length ? "County shapes could not be loaded." : "No county map for this state (its jurisdictions are towns, or 2022 turnout could not be matched)."}</p>`; }
+  if (!g) { Plotly.purge(mapEl); mapEl.innerHTML = `<p class="note">${mapped.length ? "County shapes could not be loaded." : "No county map: 2022 turnout could not be matched for this state."}</p>`; }
   else {
-    mapEl.innerHTML = "";
+    if (!mapEl.data) mapEl.innerHTML = "";
     const prefix = mapped[0].fips.slice(0, 2);
     const feats = { type: "FeatureCollection", features: g.features.filter(f => f.id.startsWith(prefix)) };
     const z = mapped.map(r => pct(r.total, r.turn));
@@ -396,7 +400,7 @@ async function drawCounties() {
       colorscale: [[0, css("--seq-lo")], [1, css("--seq-hi")]], marker: { line: { color: css("--surface"), width: 0.8 } },
       colorbar: { thickness: 10, len: 0.6, outlinewidth: 0, ticksuffix: "%" },
     }], baseLayout({ margin: { l: 0, r: 0, t: 0, b: 0 },
-      geo: { fitbounds: "locations", visible: false, bgcolor: "rgba(0,0,0,0)" } }), plotCfg);
+      geo: { fitbounds: "locations", visible: false, bgcolor: "rgba(0,0,0,0)", projection: { type: "mercator" } } }), plotCfg);
     if (s.countyCurves) mapEl.on("plotly_click", e => pickCounty(e.points[0].customdata));
   }
   drawCountyTrend();
