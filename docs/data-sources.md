@@ -69,6 +69,23 @@ What each source offers today, probed directly. Nothing has been built yet.
 - Census API `https://api.census.gov/data/{year}/cps/voting/nov` works for 2010–2024.
 - `PES5` (in person vs mail), `PES6` (on or before Election Day), by state. Sample survey: state-level only, no party, no dates. Low priority.
 
+## Historical early vote by party (checked 2026-10-21)
+
+Final or near-final totals for past cycles, beyond the NC and PA voter files.
+
+| Source | Cycles | What it has | Access |
+|---|---|---|---|
+| McDonald Google Sheets (linked from electproject.org) | 2014, 2016, 2018 | Per state: mail requested/returned, in-person, and accepted ballots by party, race, gender, age, "as of" the final days. Party for 13 states (2016) and 17 (2018) | Live CSV export: `docs.google.com/spreadsheets/d/<id>/export?format=csv`. 2018 `1OgRzmhXLW6YEHQdhQkpSES3lbsVbRLkz2ZCv2Jh5tf0`, 2016 `1fz_V3oAUL8XJMEudq5wm5hDT_f554uagt6sIm_sJDro`, 2014 `1oCBdr7Mu_PzF454sbZDmIpYMlehTzISDLNxeJKOTGtA` |
+| UF 2022 tracker on RPubs | 2022 | One page per state (`rpubs.com/ElectProject/<ST>_early_vote_2022`) with total, in-person, and mail by party, age, gender, race; final as of Nov 24, 2022 | HTML tables; the page frames a static file on `rstudio-pubs-static.s3.amazonaws.com` |
+| UF 2020 tracker on GitHub Pages | 2020 | `electproject.github.io/Early-Vote-2020G/<ST>.html`, party tables per state | HTML tables |
+| UF 2024 snapshots (this project) | 2024 | Party for 23 registration states, 0-3 days before Election Day | Already in `data/processed/uf/2024.parquet` |
+| MEDSL precinct returns (GitHub `MEDSL/<year>-elections-official`) | 2018, 2020, 2022, 2024 | Actual votes by candidate split by vote mode where the state reports it (2022: GA, NC, AZ, SC, VA, part of MI; not FL, OH, PA, TX, WI) | Free zips per state |
+| MEDSL county presidential returns (Dataverse `10.7910/DVN/VOQCHQ`) | 2000-2024 | County votes by candidate with a mode column in some states | Needs a guestbook form (name, email) before download |
+| Cooperative Election Study cumulative file (Dataverse `10.7910/DVN/II2DB6`) | 2006-2025 | Survey: vote method, party ID, vote choice, by state; about 50k respondents a year | Free, no form; `cumulative_2006-2025.feather` is 144 MB |
+| TargetSmart TargetEarly, VPAP | 2020-2026 | Modeled party (TargetEarly), Virginia locality early vote (VPAP) | Block scripts (403); browser only |
+
+Virginia check: in MEDSL 2022 US House results, Virginia's "absentee" ballots (its reporting of all early votes) went D 612,728 to R 356,364, D+26. The video's L2 model puts 2026 at D+24.
+
 ## Implications for the build
 
 1. Start a daily snapshot job right away for UF (national + county) and FL. Every day we wait is lost history for 2026.
