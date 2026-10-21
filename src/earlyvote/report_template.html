@@ -84,6 +84,7 @@ footer li { margin-bottom: 4px; }
     <div class="controls">
       <div class="seg" id="mapMode">
         <button aria-pressed="true" data-v="share">Share of 2022 turnout</button>
+        <button aria-pressed="false" data-v="early22">Share of 2022 early vote</button>
         <button aria-pressed="false" data-v="party">Party registration split</button>
       </div>
     </div>
@@ -113,12 +114,25 @@ footer li { margin-bottom: 4px; }
         </div>
         <p class="note" id="trendNote"></p>
         <div id="trend" class="chart"></div>
+        <h2 style="margin-top:16px">Early vote by election</h2>
+        <p class="note" id="pastNote"></p>
+        <div class="tablewrap" id="pastTable"></div>
       </div>
       <div>
         <h2>Party registration of early voters</h2>
         <p class="note" id="partyNote"></p>
         <div id="party" class="chart short"></div>
         <div class="legend"><span><i style="background:var(--dem)"></i>Democratic</span><span><i style="background:var(--rep)"></i>Republican</span><span><i style="background:var(--oth)"></i>Unaffiliated / other</span></div>
+        <div id="marginWrap">
+          <h2 style="margin-top:16px">Party margin by days out</h2>
+          <p class="note">Democratic minus Republican share of early voters so far, by registration, at each day before Election Day.</p>
+          <div id="margin" class="chart short" style="height:260px"></div>
+        </div>
+        <div id="repeatWrap">
+          <h2 style="margin-top:16px">Repeat early voters</h2>
+          <p class="note" id="repeatNote"></p>
+          <div id="repeat" class="chart short" style="height:260px"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -172,8 +186,8 @@ function seg(id, key, onChange) {
     state[key] = b.dataset.v; onChange();
   });
 }
-function table(el, cols, rows, onRow, selKey) {
-  let sortI = 1, asc = false;
+function table(el, cols, rows, onRow, selKey, sort = { i: 1, asc: false }) {
+  let sortI = sort.i, asc = sort.asc;
   const draw = () => {
     const sorted = rows.slice().sort((a, b) => {
       const x = cols[sortI].v(a), y = cols[sortI].v(b);
@@ -206,34 +220,45 @@ function national() {
   ].map(([l, v, h]) => `<div class="tile"><div class="label">${l}</div><div class="value">${v}</div><div class="hint">${h}</div></div>`).join("");
 }
 
+const early2022 = s => s.finals[2022] ? s.finals[2022].early : null;
+const MAP_MODES = {
+  share: { z: (s, L) => pct(L.total, s.turn2022), scale: "seq", suffix: "%", title: "of 2022<br>turnout",
+    note: "Mail ballots returned plus in-person early votes, as a share of each state's total 2022 turnout. Click a state to open it below." },
+  early22: { z: (s, L) => pct(L.total, early2022(s)), scale: "seq", suffix: "%", title: "of 2022<br>early vote",
+    note: "Early votes so far as a share of the state's entire 2022 early vote (EAVS final). 100% means 2026 has already matched 2022's full early vote." },
+  party: { z: (s, L, sh) => s.partyReg && sh ? sh.DEM - sh.REP : null, scale: "div", suffix: " pts", title: "D minus R<br>share",
+    note: "Democratic minus Republican share among early voters, by party registration. Gray states do not report party registration." },
+};
+
 function drawMap() {
-  const share = state.map === "share";
+  const mode = MAP_MODES[state.map];
   const rows = codes.map(c => {
     const s = S[c], L = s.latest, sh = partyShares(L);
-    return { c, s, L, z: share ? pct(L.total, s.turn2022) : (s.partyReg && sh ? sh.DEM - sh.REP : null), sh };
+    return { c, s, L, z: mode.z(s, L, sh), sh };
   }).filter(r => r.z != null);
   const text = rows.map(r => `<b>${r.s.name}</b><br>${fmt(r.L.total)} early votes (${fmtPct(pct(r.L.total, r.s.turn2022))} of 2022 turnout)` +
+    (early2022(r.s) ? `<br>${fmtPct(pct(r.L.total, early2022(r.s)))} of the 2022 early vote (${fmt(early2022(r.s))})` : "") +
     `<br>Mail returned ${fmt(r.L.mail_returned)} · In person ${fmt(r.L.in_person_early)}` +
     (r.s.partyReg && r.sh ? `<br>D ${r.sh.DEM.toFixed(1)}% · R ${r.sh.REP.toFixed(1)}% · Other ${r.sh.OTH.toFixed(1)}%` : "<br>No party registration split") +
     `<br>Through ${r.L.as_of}`);
-  const zmax = share ? Math.max(...rows.map(r => r.z)) : Math.max(15, ...rows.map(r => Math.abs(r.z)));
+  const seq = mode.scale === "seq";
+  const zmax = seq ? Math.max(...rows.map(r => r.z)) : Math.max(15, ...rows.map(r => Math.abs(r.z)));
   Plotly.react("map", [{
     type: "choropleth", locationmode: "USA-states", locations: rows.map(r => r.c), z: rows.map(r => r.z),
-    text, hoverinfo: "text", zmin: share ? 0 : -zmax, zmax,
-    colorscale: share ? [[0, css("--seq-lo")], [1, css("--seq-hi")]] : [[0, css("--rep")], [0.5, css("--mid")], [1, css("--dem")]],
+    text, hoverinfo: "text", zmin: seq ? 0 : -zmax, zmax,
+    colorscale: seq ? [[0, css("--seq-lo")], [1, css("--seq-hi")]] : [[0, css("--rep")], [0.5, css("--mid")], [1, css("--dem")]],
     marker: { line: { color: css("--surface"), width: 1.5 } },
-    colorbar: { thickness: 10, len: 0.6, outlinewidth: 0, ticksuffix: share ? "%" : " pts",
-      title: { text: share ? "of 2022<br>turnout" : "D minus R<br>share", side: "top" } },
+    colorbar: { thickness: 10, len: 0.6, outlinewidth: 0, ticksuffix: mode.suffix, title: { text: mode.title, side: "top" } },
   }], baseLayout({ margin: { l: 0, r: 0, t: 0, b: 0 },
     geo: { scope: "usa", bgcolor: "rgba(0,0,0,0)", lakecolor: "rgba(0,0,0,0)", showlakes: false,
            subunitcolor: css("--surface"), landcolor: css("--grid") } }), plotCfg);
   document.getElementById("map").on?.("plotly_click", e => pickState(e.points[0].location));
-  document.getElementById("mapNote").textContent = share
-    ? "Mail ballots returned plus in-person early votes, as a share of each state's total 2022 turnout. Click a state to open it below."
-    : "Democratic minus Republican share among early voters, by party registration. Gray states do not report party registration.";
+  document.getElementById("mapNote").textContent = mode.note;
   table(document.getElementById("stateTable"), [
     { h: "State", v: r => r.s.name }, { h: "Early votes", v: r => r.L.total, f: fmt },
     { h: "% of 2022 turnout", v: r => pct(r.L.total, r.s.turn2022), f: fmtPct },
+    { h: "2022 early (final)", v: r => early2022(r.s) || -1, f: v => v < 0 ? "–" : fmt(v) },
+    { h: "% of 2022 early", v: r => early2022(r.s) ? pct(r.L.total, early2022(r.s)) : -1, f: v => v < 0 ? "–" : fmtPct(v) },
     { h: "Mail returned", v: r => r.L.mail_returned, f: fmt }, { h: "In person", v: r => r.L.in_person_early, f: fmt },
     { h: "Dem %", v: r => r.sh && r.s.partyReg ? r.sh.DEM : -1, f: v => v < 0 ? "–" : fmtPct(v) },
     { h: "Rep %", v: r => r.sh && r.s.partyReg ? r.sh.REP : -1, f: v => v < 0 ? "–" : fmtPct(v) },
@@ -303,7 +328,7 @@ function drawState() {
     (s.partyReg && sh ? `<div class="tile"><div class="label">Party registration</div>
       <div class="partybar"><span style="width:${sh.DEM}%;background:var(--dem)"></span><span style="width:${sh.REP}%;background:var(--rep)"></span><span style="width:${sh.OTH}%;background:var(--oth)"></span></div>
       <div class="hint">D ${sh.DEM.toFixed(1)}% · R ${sh.REP.toFixed(1)}% · Other ${sh.OTH.toFixed(1)}%</div></div>` : "");
-  drawTrend(); drawParty(); drawCounties();
+  drawTrend(); drawPast(); drawParty(); drawMargin(); drawRepeat(); drawCounties();
 }
 
 function drawTrend() {
@@ -350,10 +375,78 @@ function drawParty() {
   const y = rows.map(r => String(r.c) + (DATA.elections[r.c].covid ? " (COVID)" : ""));
   const bar = (k, name, color) => ({ type: "bar", orientation: "h", name, y, x: rows.map(r => r.sh[k]),
     marker: { color, line: { color: css("--surface"), width: 2 } }, hovertemplate: `${name} %{x:.1f}%<extra>%{y}</extra>` });
+  const height = Math.max(140, 34 * rows.length + 50);
+  el.style.height = height + "px";
   Plotly.react(el, [bar("DEM", "Democratic", css("--dem")), bar("REP", "Republican", css("--rep")), bar("OTH", "Unaffiliated / other", css("--oth"))],
-    baseLayout({ barmode: "stack", showlegend: false, bargap: 0.35, height: Math.max(140, 34 * rows.length + 50),
+    baseLayout({ barmode: "stack", showlegend: false, bargap: 0.35, height,
       xaxis: { range: [0, 100], ticksuffix: "%", gridcolor: css("--grid"), zeroline: false },
       yaxis: { autorange: "reversed", type: "category" }, margin: { l: 90, r: 16, t: 4, b: 30 } }), plotCfg);
+}
+
+function drawPast() {
+  const s = S[state.st], L = s.latest, d = L.days_out;
+  const atDay = c => { const p = (s.curves[c] || []).find(q => q[0] === d); return p ? p[1] : null; };
+  const rows = Object.keys(DATA.elections).map(Number).map(c => {
+    const f = s.finals[c], now = c === 2026;
+    return { c, label: c + (DATA.elections[c].covid ? " (COVID)" : ""), kind: DATA.elections[c].kind,
+      final: now ? null : f ? f.early : null, turnout: now ? s.turn2022 : f ? f.total : null,
+      same: now ? L.total : atDay(c) };
+  }).filter(r => r.c === 2026 || r.final != null || r.same != null);
+  document.getElementById("pastNote").textContent =
+    `Final early vote and turnout from EAVS. "At ${d} days out" needs daily history (${s.curveSource}), so it is blank for years without it. ` +
+    `2026's share is of 2022 turnout.`;
+  const dash = v => v == null ? "–" : v;
+  table(document.getElementById("pastTable"), [
+    { h: "Election", v: r => r.label }, { h: "Type", v: r => r.kind },
+    { h: "Final early vote", v: r => r.final ?? -1, f: v => v < 0 ? "–" : fmt(v) },
+    { h: "% of turnout", v: r => pct(r.c === 2026 ? L.total : r.final, r.turnout) ?? -1, f: v => v < 0 ? "–" : fmtPct(v) },
+    { h: `At ${d} days out`, v: r => r.same ?? -1, f: v => v < 0 ? "–" : fmt(v) },
+    { h: "2026 now vs. then", v: r => r.c !== 2026 && r.same ? L.total / r.same : -1, f: v => v < 0 ? "–" : v.toFixed(v < 10 ? 2 : 0) + "×" },
+  ], rows, null, () => "2026", { i: 0, asc: false });
+}
+
+function drawMargin() {
+  const s = S[state.st], wrap = document.getElementById("marginWrap");
+  wrap.hidden = !s.partyReg;
+  if (wrap.hidden) return;
+  let past = 0;
+  const traces = cyclesFor(state.kind).filter(c => s.curves[c]).map(c => {
+    // Start once 5% of the cycle's early vote is in; before that a few mail ballots swing the margin wildly.
+    const peak = Math.max(...s.curves[c].map(p => p[1]));
+    const pts = s.curves[c].filter(p => p[0] <= 60 && p[1] >= 0.05 * peak && p[2] + p[3] + p[4] > 0), order = c === 2026 ? -1 : past++;
+    const label = c + (DATA.elections[c].covid ? " (COVID)" : "");
+    return { type: "scatter", mode: pts.length < 25 ? "lines+markers" : "lines", name: label,
+      x: pts.map(p => p[0]), y: pts.map(p => 100 * (p[2] - p[3]) / (p[2] + p[3] + p[4])),
+      line: lineStyle(c, order), marker: { size: 8, line: { color: css("--surface"), width: 2 } },
+      hovertemplate: `${label}: D%{y:+.1f}<extra></extra>` };
+  }).filter(t => t.x.length);
+  const layout = trendLayout(traces, "count");
+  Object.assign(layout.yaxis, { ticksuffix: " pts", tickformat: "+", rangemode: "normal", zeroline: true, zerolinecolor: css("--axis") });
+  Object.assign(layout, { annotations: [], margin: { l: 56, r: 16, t: 8, b: 84 } });
+  layout.legend.y = -0.38;
+  Plotly.react("margin", traces, layout, plotCfg);
+}
+
+function drawRepeat() {
+  const s = S[state.st], wrap = document.getElementById("repeatWrap");
+  const pairs = (s.repeat || []).filter(p => DATA.elections[p.after].kind === state.kind).sort((a, b) => b.after - a.after);
+  wrap.hidden = !pairs.length;
+  if (wrap.hidden) return;
+  const traces = pairs.flatMap((p, i) => ["DEM", "REP"].map(party => {
+    const pts = p.rates[party], name = `${party === "DEM" ? "D" : "R"} ${p.before}→${p.after}`;
+    return { type: "scatter", mode: "lines", name, x: pts.map(q => q[0]), y: pts.map(q => q[1]),
+      line: { color: css(party === "DEM" ? "--dem" : "--rep"), width: i === 0 ? 3 : 1.5 }, opacity: i === 0 ? 1 : 0.45,
+      hovertemplate: `${name}: %{y:.1f}%<extra></extra>` };
+  }));
+  const [cur, base] = pairs;
+  document.getElementById("repeatNote").textContent =
+    `Of each party's early voters in ${cur.before}, the share who have voted early again in ${cur.after} (bold)` +
+    (base ? `, against ${base.before} early voters in ${base.after} (faded)` : "") +
+    `. Party is registration in the earlier election; voters matched by NC voter ID. ` +
+    `${fmt(cur.base.DEM)} Democratic and ${fmt(cur.base.REP)} Republican early voters in ${cur.before}.`;
+  const layout = trendLayout(traces, "share");
+  Object.assign(layout, { showlegend: false, margin: { l: 56, r: 100, t: 8, b: 44 } });
+  Plotly.react("repeat", traces, layout, plotCfg);
 }
 
 let countyGeo = null;
@@ -369,7 +462,7 @@ async function drawCounties() {
   const rows = s.counties.map(([name, turn, total, mail, inp, D, R, O]) => ({ name, turn, total, mail, inp, sh: partyShares({ DEM: D, REP: R, OTH: O }) }));
   const towns = rows.length > 1.5 * s.countyMap.length && s.countyMap.length > 0;
   document.getElementById("countyTitle").textContent = `${s.name} by ${towns ? "town" : "county"}`;
-  const srcName = { ncsbe_absentee: "NC State Board voter file", fl_dos: "Florida Division of Elections", uf_tracker: "UF Election Lab" }[s.countySource];
+  const srcName = s.countySource;
   const unmatched = rows.filter(r => !r.turn).length;
   document.getElementById("countyNote").textContent = `Early votes through ${s.countyAsOf}, as a share of 2022 total turnout (EAVS). Source: ${srcName}.` +
     (towns ? " The table lists towns; the map adds them up by county." : "") +
@@ -420,7 +513,7 @@ const pick = document.getElementById("statePick");
 pick.innerHTML = codes.map(c => `<option value="${c}">${S[c].name}</option>`).join("");
 pick.onchange = () => pickState(pick.value);
 seg("mapMode", "map", drawMap);
-seg("cycleKind", "kind", () => { drawTrend(); drawCountyTrend(); });
+seg("cycleKind", "kind", () => { drawTrend(); drawMargin(); drawRepeat(); drawCountyTrend(); });
 seg("yMode", "y", drawTrend);
 national(); drawMap(); pickState(state.st); window.scrollTo(0, 0);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { drawMap(); drawState(); });

@@ -29,7 +29,7 @@ Adds Internet Archive copies of the UF files for 2024 and 2026 as dated snapshot
 .venv/Scripts/python -m earlyvote.cli build
 ```
 
-Runs `nc`, `uf`, `fl`, `eavs`, and `report` (each also runs alone). Writes `data/processed/{nc,uf,fl}/<cycle>.parquet`, `data/processed/eavs.parquet`, and `reports/earlyvote.html`.
+Runs `nc`, `pa`, `uf`, `fl`, `eavs`, and `report` (each also runs alone). Writes `data/processed/{nc,pa,uf,fl}/<cycle>.parquet`, `data/processed/nc_repeat.parquet`, `data/processed/eavs.parquet`, and `reports/earlyvote.html`.
 
 ```bash
 .venv/Scripts/python -m earlyvote.cli nc
@@ -61,7 +61,12 @@ Party is registration, not vote choice. `county` is `ALL` on statewide rows (UF)
 
 ## Report
 
-`reports/earlyvote.html` is one self-contained page: a state map (share of 2022 turnout, or party split), a state picker with cumulative early vote by days out (midterms or presidential years, ballots or share of turnout), party mix by cycle, and a county map and table. NC counties also have their own days-out trends. To view it in a browser served locally:
+`reports/earlyvote.html` is one self-contained page:
+
+- A state map: share of 2022 turnout, share of the 2022 final early vote, or party split.
+- Per state: cumulative early vote by days out (midterms or presidential years, ballots or share of turnout), an "Early vote by election" table (each cycle's final early vote, share of turnout, and count at the same days out as 2026), party mix by cycle, and the D-minus-R margin by days out.
+- NC only: repeat early voters, the share of each party's early voters in the previous general who have voted early again, against the same measure four years earlier.
+- A county map and table; NC and PA counties also have their own days-out trends. To view it in a browser served locally:
 
 ```bash
 .venv/Scripts/python -m http.server 8765 --directory reports
@@ -77,6 +82,12 @@ Party is registration, not vote choice. `county` is `ALL` on statewide rows (UF)
 
 - Counts run through the day before each county's compile date. Mail requested is "provided, not yet returned" plus returned.
 - Florida's CDN serves stale copies to plain requests, so snapshot requests carry a unique query string.
+
+## PA notes
+
+- `pa` asks data.pa.gov to count each election's voter-level mail ballot file by county, party, and date (2020 to 2026; no-excuse mail began in 2020). Requests are dated by application return, returns by ballot return. Declined applications are excluded from 2024 on, where the files record them.
+- Pennsylvania has no in-person early voting, so its early vote is mail only, and the files carry no voter ID, so repeat voters cannot be tracked.
+- Past cycles are frozen and rebuilt only when missing; 2026 rebuilds when the dataset updates. Each file is cut off the day before its last update.
 
 ## NC notes
 

@@ -1,6 +1,6 @@
 import argparse
 
-from earlyvote import eavs, fl, nc, report, snapshot, uf
+from earlyvote import eavs, fl, nc, pa, report, snapshot, uf
 
 
 def main() -> None:
@@ -10,10 +10,11 @@ def main() -> None:
     sub.add_parser("backfill", help="add Internet Archive copies of UF files from 2024 and 2026")
     nc_cmd = sub.add_parser("nc", help="download NC absentee files and build tidy parquet")
     nc_cmd.add_argument("cycles", nargs="*", type=int, help="election years (default: all)")
+    sub.add_parser("pa", help="count PA mail ballot files on data.pa.gov into tidy parquet")
     sub.add_parser("uf", help="parse UF snapshots into tidy parquet")
     sub.add_parser("fl", help="parse Florida snapshots into tidy parquet")
     sub.add_parser("eavs", help="download EAVS 2014-2024 and build the finals table")
-    sub.add_parser("build", help="nc + uf + fl + eavs + report")
+    sub.add_parser("build", help="nc + pa + uf + fl + eavs + report")
     sub.add_parser("report", help="write reports/earlyvote.html from the processed data")
     args = parser.parse_args()
 
@@ -24,7 +25,8 @@ def main() -> None:
             print(" ", p)
         return
     steps = {
-        "nc": lambda: nc.run(getattr(args, "cycles", None)),
+        "nc": lambda: nc.run(getattr(args, "cycles", None)) + [nc.repeat_voters()],
+        "pa": pa.run,
         "uf": uf.run,
         "fl": lambda: [fl.build()],
         "eavs": lambda: [eavs.run()],

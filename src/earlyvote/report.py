@@ -7,14 +7,20 @@ from pathlib import Path
 
 import pandas as pd
 
-from earlyvote import ROOT, eavs, geo, tidy, uf
+from earlyvote import ROOT, eavs, geo, nc, pa, tidy, uf
 from earlyvote.elections import GENERALS
 from earlyvote.tidy import STATEWIDE
 
 OUT = ROOT / "reports" / "earlyvote.html"
 EARLY = ["mail_returned", "in_person_early"]
-# County rows: prefer the voter file, then Florida's official feed, then UF.
-COUNTY_SOURCES = ["ncsbe_absentee", "fl_dos", "uf_tracker"]
+# States with a voter-level file: exact daily history by county, preferred over the tracker.
+VOTER_FILES = {
+    "NC": (nc.SOURCE, "NC State Board voter file"),
+    "PA": (pa.SOURCE, "PA Department of State mail ballot file"),
+}
+# County rows: prefer a voter file, then Florida's official feed, then UF.
+SOURCE_NAMES = dict(VOTER_FILES.values()) | {"fl_dos": "Florida Division of Elections", "uf_tracker": "UF Election Lab"}
+COUNTY_SOURCES = list(SOURCE_NAMES)
 
 
 def wide(df: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
@@ -29,10 +35,10 @@ def wide(df: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
 
 
 def statewide(df: pd.DataFrame) -> pd.DataFrame:
-    """Statewide early vote by state, cycle, days out. NC sums its voter-file counties; others use UF."""
-    nc = df[df["source"] == "ncsbe_absentee"]
-    others = df[(df["source"] == "uf_tracker") & (df["county"] == STATEWIDE) & (df["state"] != "NC")]
-    return wide(pd.concat([nc, others]), ["state", "cycle", "days_out", "as_of"])
+    """Statewide early vote by state, cycle, days out. Voter-file states sum their counties; others use UF."""
+    files = df[df["source"].isin([src for src, _ in VOTER_FILES.values()])]
+    others = df[(df["source"] == "uf_tracker") & (df["county"] == STATEWIDE) & ~df["state"].isin(list(VOTER_FILES))]
+    return wide(pd.concat([files, others]), ["state", "cycle", "days_out", "as_of"])
 
 
 def latest_counties(df: pd.DataFrame, cycle: int) -> pd.DataFrame:
@@ -79,9 +85,9 @@ def payload() -> dict:
     state_finals = ev_final.groupby(["state", "cycle"])[["total", "early"]].sum()
     places = geo.Geography(finals[finals["cycle"] == 2022])
 
-    nc_counties = df[df["source"] == "ncsbe_absentee"]
-    nc_curves = (nc_counties[nc_counties["mode"].isin(EARLY)]
-                 .groupby(["county", "cycle", "days_out"], observed=True)["count"].sum().reset_index())
+    file_rows = df[df["source"].isin([src for src, _ in VOTER_FILES.values()]) & df["mode"].isin(EARLY)]
+    county_curves = file_rows.groupby(["state", "county", "cycle", "days_out"], observed=True)["count"].sum().reset_index()
+    repeat = pd.read_parquet(nc.REPEAT_PATH) if nc.REPEAT_PATH.exists() else pd.DataFrame()
 
     out = {}
     for st, meta in states.items():
@@ -99,7 +105,7 @@ def payload() -> dict:
             "name": meta["name"],
             "turn2022": meta["turn2022"],
             "partyReg": party_reg,
-            "curveSource": "NC State Board voter file" if st == "NC" else "UF Election Lab snapshots",
+            "curveSource": VOTER_FILES[st][1] if st in VOTER_FILES else "UF Election Lab snapshots",
             "latest": {k: (str(last[k]) if k == "as_of" else int(last[k]))
                        for k in ["as_of", "days_out", "mail_requested", *EARLY, "DEM", "REP", "OTH", "UNK", "total"]},
             "curves": {int(c): records(g.sort_values("days_out", ascending=False),
@@ -111,15 +117,23 @@ def payload() -> dict:
                                       "DEM", "REP", "OTH"]),
             "countyMap": records(county_rollup(cty, places.names), ["fips5", "name", "total", "turn2022",
                                                                     "DEM", "REP", "OTH"]),
-            "countySource": cty["source"].iloc[0] if len(cty) else None,
+            "countySource": SOURCE_NAMES[cty["source"].iloc[0]] if len(cty) else None,
             "countyAsOf": str(cty["as_of"].iloc[0]) if len(cty) else None,
         }
-        if st == "NC":
+        if st in VOTER_FILES:
             out[st]["countyCurves"] = {
                 county: {int(c): records(gc.sort_values("days_out", ascending=False), ["days_out", "count"])
                          for c, gc in g.groupby("cycle")}
-                for county, g in nc_curves.groupby("county", observed=True)
+                for county, g in county_curves[county_curves["state"] == st].groupby("county", observed=True)
             }
+        if st == "NC" and not repeat.empty:
+            out[st]["repeat"] = [
+                {"before": int(b), "after": int(a),
+                 "base": {p: int(gp["base"].iloc[0]) for p, gp in g.groupby("party")},
+                 "rates": {p: records(gp.sort_values("days_out", ascending=False), ["days_out", "rate"])
+                           for p, gp in g.assign(rate=100 * g["rate"]).groupby("party")}}
+                for (b, a), g in repeat.groupby(["before", "after"])
+            ]
     return {
         "generated": date.today().isoformat(),
         "elections": {c: {"kind": g.kind, "covid": g.covid_outlier, "day": g.election_day.isoformat()}
