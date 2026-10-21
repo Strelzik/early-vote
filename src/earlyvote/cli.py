@@ -1,23 +1,37 @@
 import argparse
 
-from earlyvote import nc, snapshot
+from earlyvote import eavs, fl, nc, report, snapshot, uf
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="earlyvote")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("snapshot", help="save new copies of the UF and Florida daily files")
+    sub.add_parser("backfill", help="add Internet Archive copies of UF files from 2024 and 2026")
     nc_cmd = sub.add_parser("nc", help="download NC absentee files and build tidy parquet")
     nc_cmd.add_argument("cycles", nargs="*", type=int, help="election years (default: all)")
+    sub.add_parser("uf", help="parse UF snapshots into tidy parquet")
+    sub.add_parser("fl", help="parse Florida snapshots into tidy parquet")
+    sub.add_parser("eavs", help="download EAVS 2014-2024 and build the finals table")
+    sub.add_parser("build", help="nc + uf + fl + eavs + report")
+    sub.add_parser("report", help="write reports/earlyvote.html from the processed data")
     args = parser.parse_args()
 
-    if args.command == "snapshot":
-        written = snapshot.run()
+    if args.command in ("snapshot", "backfill"):
+        written = snapshot.run() if args.command == "snapshot" else snapshot.backfill()
         print(f"{len(written)} new snapshot files")
         for p in written:
             print(" ", p)
-    elif args.command == "nc":
-        for p in nc.run(args.cycles):
+        return
+    steps = {
+        "nc": lambda: nc.run(getattr(args, "cycles", None)),
+        "uf": uf.run,
+        "fl": lambda: [fl.build()],
+        "eavs": lambda: [eavs.run()],
+        "report": lambda: [report.build()],
+    }
+    for name in steps if args.command == "build" else [args.command]:
+        for p in steps[name]():
             print(p)
 
 

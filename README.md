@@ -17,7 +17,19 @@ python -m venv .venv
 .venv/Scripts/python -m earlyvote.cli snapshot
 ```
 
-Saves new copies of the UF Election Lab national and county CSVs and the Florida DOS county files to `data/raw/snapshots/`. These sources overwrite themselves daily, so history exists only if this runs. A copy is kept only when its content changed. The Windows scheduled task `earlyvote-snapshot` runs it at 9:00 and 19:30 and logs to `data/logs/snapshot.log`.
+Saves new copies of the UF Election Lab national and county CSVs and the Florida DOS county files to `data/raw/snapshots/<source>-<cycle>/`. These sources overwrite themselves daily, so history exists only if this runs. A copy is kept only when its content changed. The Windows scheduled task `earlyvote-snapshot` runs `snapshot` then `build` at 9:00 and 19:30 and logs to `data/logs/snapshot.log`.
+
+```bash
+.venv/Scripts/python -m earlyvote.cli backfill
+```
+
+Adds Internet Archive copies of the UF files for 2024 and 2026 as dated snapshots. Safe to rerun; it is paced because the Archive rate-limits.
+
+```bash
+.venv/Scripts/python -m earlyvote.cli build
+```
+
+Runs `nc`, `uf`, `fl`, `eavs`, and `report` (each also runs alone). Writes `data/processed/{nc,uf,fl}/<cycle>.parquet`, `data/processed/eavs.parquet`, and `reports/earlyvote.html`.
 
 ```bash
 .venv/Scripts/python -m earlyvote.cli nc
@@ -39,7 +51,30 @@ Every source is reshaped to one long table (`src/earlyvote/tidy.py`). Counts are
 | age_band | `18-25`, `26-40`, `41-65`, `65+`, `unknown` (UF's bands) |
 | count, source | cumulative ballots, source id |
 
-Party is registration, not vote choice.
+Party is registration, not vote choice. `county` is `ALL` on statewide rows (UF); never sum those with county rows. A split in a state without party registration (`tidy.PARTY_REGISTRATION`) is marked `modeled`. Load everything with `earlyvote.tidy.load()`.
+
+## Final totals (EAVS)
+
+`earlyvote.eavs.load()` returns one row per jurisdiction and cycle (2014 to 2024): total turnout, Election Day, early in person, mail (domestic plus all-mail jurisdictions), UOCAVA, provisional. It is the denominator for "share of 2022 turnout" and the final early vote for cycles with no daily history. Jurisdictions are towns in CT, MA, RI, VT, and WI, so those do not join to county rows. NC's voter file counts about 4% more in-person early votes than EAVS for 2022.
+
+## Report
+
+`reports/earlyvote.html` is one self-contained page: a state map (share of 2022 turnout, or party split), a state picker with cumulative early vote by days out (midterms or presidential years, ballots or share of turnout), party mix by cycle, and a county map and table. NC counties also have their own days-out trends. To view it in a browser served locally:
+
+```bash
+.venv/Scripts/python -m http.server 8765 --directory reports
+```
+
+## UF notes
+
+- Statewide history for 2026 and 2024 comes only from saved snapshots and Internet Archive copies, so curves have gaps between saved days.
+- County files have no date; each takes its state's `last_update` from the nearest national snapshot.
+- Tennessee county rows are daily increments and are summed. Dates with the wrong year (for example 11/1/2023 in the 2024 file) are read in the cycle's year.
+
+## Florida notes
+
+- Counts run through the day before each county's compile date. Mail requested is "provided, not yet returned" plus returned.
+- Florida's CDN serves stale copies to plain requests, so snapshot requests carry a unique query string.
 
 ## NC notes
 
