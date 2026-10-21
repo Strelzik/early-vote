@@ -83,6 +83,20 @@ Party is registration, not vote choice. `county` is `ALL` on statewide rows (UF)
 - Counts run through the day before each county's compile date. Mail requested is "provided, not yet returned" plus returned.
 - Florida's CDN serves stale copies to plain requests, so snapshot requests carry a unique query string.
 
+## Past final early vote by party
+
+```bash
+.venv/Scripts/python -m earlyvote.cli finals
+```
+
+Builds `data/processed/finals_party.parquet`, one row per state, cycle, and source (DEM, REP, OTH, total), from:
+
+- McDonald's 2014, 2016, 2018 Google Sheets (registration, 11 to 17 states a cycle).
+- UF's 2020 GitHub and 2022 RPubs state pages (registration, 20 and 23 states). When a page has no usable "Total Voted" table, in-person and mail tables are added; NC 2020's "Total Voted" heading sits over an outstanding-ballot table, so the count column must say Count.
+- MEDSL precinct returns, 2018, 2022, 2024 (votes for Democratic and Republican candidates among early ballots; President, else US House). Mode labels are classified by `finals.MODE_RULES`; a precinct's TOTAL row is dropped when it repeats a split (Georgia). A state-year is used only when 2% or less of votes are unsplit or unrecognized, and its early total is within 0.8 to 1.25 of EAVS (12 to 14 states a cycle). MEDSL's 2020 data is on Dataverse behind a form, so 2020 is missing.
+
+Registration splits outside party-registration states are marked `modeled`. The sources are frozen, so `build` only creates the table when missing. Checks: UF and McDonald margins agree with the NC and PA voter files within 0.6 points.
+
 ## PA notes
 
 - `pa` asks data.pa.gov to count each election's voter-level mail ballot file by county, party, and date (2020 to 2026; no-excuse mail began in 2020). Requests are dated by application return, returns by ballot return. Declined applications are excluded from 2024 on, where the files record them.

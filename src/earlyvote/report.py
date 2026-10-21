@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from earlyvote import ROOT, eavs, geo, nc, pa, tidy, uf
+from earlyvote import ROOT, eavs, finals, geo, nc, pa, tidy, uf
 from earlyvote.elections import GENERALS
 from earlyvote.tidy import STATEWIDE
 
@@ -21,6 +21,7 @@ VOTER_FILES = {
 # County rows: prefer a voter file, then Florida's official feed, then UF.
 SOURCE_NAMES = dict(VOTER_FILES.values()) | {"fl_dos": "Florida Division of Elections", "uf_tracker": "UF Election Lab"}
 COUNTY_SOURCES = list(SOURCE_NAMES)
+FINALS_SOURCES = {"uf_tracker": "UF", "mcdonald_sheet": "McDonald", "medsl": "MEDSL"}
 
 
 def wide(df: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
@@ -76,18 +77,19 @@ def records(df: pd.DataFrame, cols: list[str]) -> list[list]:
 
 def payload() -> dict:
     df = tidy.load()
-    finals = eavs.load()
+    eavs_finals = eavs.load()
     states = turnout_2022()
     sw = statewide(df)
     counties = latest_counties(df, 2026)
 
-    ev_final = finals.assign(early=finals["early_in_person"].fillna(0) + finals["mail"].fillna(0))
+    ev_final = eavs_finals.assign(early=eavs_finals["early_in_person"].fillna(0) + eavs_finals["mail"].fillna(0))
     state_finals = ev_final.groupby(["state", "cycle"])[["total", "early"]].sum()
-    places = geo.Geography(finals[finals["cycle"] == 2022])
+    places = geo.Geography(eavs_finals[eavs_finals["cycle"] == 2022])
 
     file_rows = df[df["source"].isin([src for src, _ in VOTER_FILES.values()]) & df["mode"].isin(EARLY)]
     county_curves = file_rows.groupby(["state", "county", "cycle", "days_out"], observed=True)["count"].sum().reset_index()
     repeat = pd.read_parquet(nc.REPEAT_PATH) if nc.REPEAT_PATH.exists() else pd.DataFrame()
+    party_finals = pd.read_parquet(finals.OUT) if finals.OUT.exists() else pd.DataFrame(columns=finals.COLUMNS)
 
     out = {}
     for st, meta in states.items():
@@ -106,6 +108,7 @@ def payload() -> dict:
             "turn2022": meta["turn2022"],
             "partyReg": party_reg,
             "curveSource": VOTER_FILES[st][1] if st in VOTER_FILES else "UF Election Lab snapshots",
+            "voterFile": st in VOTER_FILES,
             "latest": {k: (str(last[k]) if k == "as_of" else int(last[k]))
                        for k in ["as_of", "days_out", "mail_requested", *EARLY, "DEM", "REP", "OTH", "UNK", "total"]},
             "curves": {int(c): records(g.sort_values("days_out", ascending=False),
@@ -117,6 +120,11 @@ def payload() -> dict:
                                       "DEM", "REP", "OTH"]),
             "countyMap": records(county_rollup(cty, places.names), ["fips5", "name", "total", "turn2022",
                                                                     "DEM", "REP", "OTH"]),
+            "finalsParty": [
+                {"cycle": int(r.cycle), "source": FINALS_SOURCES[r.source], "basis": r.basis,
+                 "dem": round(r.DEM), "rep": round(r.REP), "total": round(r.total)}
+                for r in party_finals[party_finals["state"] == st].itertuples()
+            ],
             "countySource": SOURCE_NAMES[cty["source"].iloc[0]] if len(cty) else None,
             "countyAsOf": str(cty["as_of"].iloc[0]) if len(cty) else None,
         }

@@ -57,6 +57,7 @@ select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid 
 .chart.short { height: 220px; }
 .grid2 { display: grid; grid-template-columns: 1fr; gap: 16px; }
 @media (min-width: 900px) { .grid2 { grid-template-columns: 3fr 2fr; } }
+.grid2 > div { min-width: 0; }
 .partybar { display: flex; height: 14px; border-radius: 4px; overflow: hidden; gap: 2px; margin: 6px 0 2px; }
 .partybar span { display: block; }
 .legend { display: flex; gap: 14px; color: var(--ink-2); font-size: 12.5px; flex-wrap: wrap; }
@@ -195,7 +196,7 @@ function table(el, cols, rows, onRow, selKey, sort = { i: 1, asc: false }) {
     });
     el.innerHTML = `<table><thead><tr>${cols.map((c, i) => `<th data-i="${i}">${c.h}</th>`).join("")}</tr></thead><tbody>${
       sorted.map(r => `<tr data-k="${cols[0].v(r)}" class="${selKey && selKey() === cols[0].v(r) ? "sel" : ""}">${
-        cols.map(c => `<td>${c.f ? c.f(c.v(r)) : c.v(r)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+        cols.map(c => `<td>${c.f ? c.f(c.v(r), r) : c.v(r)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     el.querySelectorAll("th").forEach(th => th.onclick = () => {
       const i = +th.dataset.i; asc = i === sortI ? !asc : i === 0; sortI = i; draw(); });
     if (onRow) el.querySelectorAll("tbody tr").forEach(tr => tr.onclick = () => onRow(tr.dataset.k));
@@ -383,6 +384,28 @@ function drawParty() {
       yaxis: { autorange: "reversed", type: "category" }, margin: { l: 90, r: 16, t: 4, b: 30 } }), plotCfg);
 }
 
+const marginPts = (dem, rep, total) => total ? 100 * (dem - rep) / total : null;
+const fmtMargin = v => v == null ? "–" : (v >= 0 ? "D+" : "R+") + Math.abs(v).toFixed(1);
+
+// Final early-voter margin by registration: the voter file or a tracker copy taken within three days
+// of Election Day, else UF's archived final page, else McDonald's sheet.
+function registrationFinal(s, c) {
+  if (!s.partyReg) return null;
+  if (c === 2026) return { v: marginPts(s.latest.DEM, s.latest.REP, s.latest.DEM + s.latest.REP + s.latest.OTH), src: "so far" };
+  const pts = s.curves[c] || [], last = pts[pts.length - 1];
+  if (last && last[0] <= 3 && last[2] + last[3] > 0)
+    return { v: marginPts(last[2], last[3], last[2] + last[3] + last[4]), src: s.voterFile ? "voter file" : "UF snapshot" };
+  for (const src of ["UF", "McDonald"]) {
+    const f = s.finalsParty.find(x => x.cycle === c && x.basis === "registration" && x.source === src);
+    if (f) return { v: marginPts(f.dem, f.rep, f.total), src };
+  }
+  return null;
+}
+function votesFinal(s, c) {
+  const f = s.finalsParty.find(x => x.cycle === c && x.basis === "vote_choice");
+  return f ? { v: marginPts(f.dem, f.rep, f.total), src: "MEDSL" } : null;
+}
+
 function drawPast() {
   const s = S[state.st], L = s.latest, d = L.days_out;
   const atDay = c => { const p = (s.curves[c] || []).find(q => q[0] === d); return p ? p[1] : null; };
@@ -390,11 +413,14 @@ function drawPast() {
     const f = s.finals[c], now = c === 2026;
     return { c, label: c + (DATA.elections[c].covid ? " (COVID)" : ""), kind: DATA.elections[c].kind,
       final: now ? null : f ? f.early : null, turnout: now ? s.turn2022 : f ? f.total : null,
-      same: now ? L.total : atDay(c) };
-  }).filter(r => r.c === 2026 || r.final != null || r.same != null);
+      same: now ? L.total : atDay(c), reg: registrationFinal(s, c), votes: votesFinal(s, c) };
+  }).filter(r => r.c === 2026 || r.final != null || r.same != null || r.reg || r.votes);
   document.getElementById("pastNote").textContent =
     `Final early vote and turnout from EAVS. "At ${d} days out" needs daily history (${s.curveSource}), so it is blank for years without it. ` +
-    `2026's share is of 2022 turnout.`;
+    `2026's share is of 2022 turnout. "Early voters D−R" is the registration margin among early voters at the end (2026: so far). ` +
+    `"Early votes cast D−R" is the actual vote for Democratic minus Republican candidates among early ballots (President, else US House), where the state reports results by vote method. ` +
+    `Compare 2026 with care: while early voting is underway its mix of mail and in-person votes differs from a finished cycle's.`;
+  const marginCell = m => m ? `${fmtMargin(m.v)} <span style="color:var(--muted)">${m.src}</span>` : "–";
   const dash = v => v == null ? "–" : v;
   table(document.getElementById("pastTable"), [
     { h: "Election", v: r => r.label }, { h: "Type", v: r => r.kind },
@@ -402,6 +428,8 @@ function drawPast() {
     { h: "% of turnout", v: r => pct(r.c === 2026 ? L.total : r.final, r.turnout) ?? -1, f: v => v < 0 ? "–" : fmtPct(v) },
     { h: `At ${d} days out`, v: r => r.same ?? -1, f: v => v < 0 ? "–" : fmt(v) },
     { h: "2026 now vs. then", v: r => r.c !== 2026 && r.same ? L.total / r.same : -1, f: v => v < 0 ? "–" : v.toFixed(v < 10 ? 2 : 0) + "×" },
+    { h: "Early voters D−R", v: r => r.reg ? r.reg.v : -999, f: (v, r) => marginCell(r.reg) },
+    { h: "Early votes cast D−R", v: r => r.votes ? r.votes.v : -999, f: (v, r) => marginCell(r.votes) },
   ], rows, null, () => "2026", { i: 0, asc: false });
 }
 

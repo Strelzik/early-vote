@@ -1,6 +1,6 @@
 import argparse
 
-from earlyvote import eavs, fl, nc, pa, report, snapshot, uf
+from earlyvote import eavs, finals, fl, nc, pa, report, snapshot, uf
 
 
 def main() -> None:
@@ -14,7 +14,8 @@ def main() -> None:
     sub.add_parser("uf", help="parse UF snapshots into tidy parquet")
     sub.add_parser("fl", help="parse Florida snapshots into tidy parquet")
     sub.add_parser("eavs", help="download EAVS 2014-2024 and build the finals table")
-    sub.add_parser("build", help="nc + pa + uf + fl + eavs + report")
+    sub.add_parser("finals", help="rebuild past final early vote by party (McDonald, UF, MEDSL)")
+    sub.add_parser("build", help="nc + pa + uf + fl + eavs + finals + report")
     sub.add_parser("report", help="write reports/earlyvote.html from the processed data")
     args = parser.parse_args()
 
@@ -30,6 +31,8 @@ def main() -> None:
         "uf": uf.run,
         "fl": lambda: [fl.build()],
         "eavs": lambda: [eavs.run()],
+        # Past cycles never change, so `build` only creates the table when it is missing.
+        "finals": lambda: [finals.build() if args.command == "finals" or not finals.OUT.exists() else finals.OUT],
         "report": lambda: [report.build()],
     }
     for name in steps if args.command == "build" else [args.command]:
