@@ -25,16 +25,18 @@ def write_atomic(path: Path, data: bytes) -> None:
 
 
 def download_if_changed(url: str, dest: Path) -> bool:
-    """Stream url to dest unless dest already matches the remote's size and Last-Modified.
+    """Stream url to dest unless dest already has the remote's size.
 
-    dest's mtime is set to the server's Last-Modified, so it records when the source exported the file.
-    Returns True if downloaded.
+    When the server sends Last-Modified, dest's mtime is set to it, so it records when the source
+    exported the file. Returns True if downloaded.
     """
     headers = _session.head(url, timeout=60).headers
     remote_size = int(headers.get("Content-Length", -1))
-    remote_mtime = parsedate_to_datetime(headers["Last-Modified"]).timestamp()
+    modified = headers.get("Last-Modified")
+    remote_mtime = parsedate_to_datetime(modified).timestamp() if modified else None
     if dest.exists() and dest.stat().st_size == remote_size:
-        os.utime(dest, (remote_mtime, remote_mtime))
+        if remote_mtime:
+            os.utime(dest, (remote_mtime, remote_mtime))
         return False
     dest.parent.mkdir(parents=True, exist_ok=True)
     part = dest.with_name(dest.name + ".part")
@@ -43,6 +45,7 @@ def download_if_changed(url: str, dest: Path) -> bool:
         with part.open("wb") as f:
             for chunk in r.iter_content(1 << 20):
                 f.write(chunk)
-    os.utime(part, (remote_mtime, remote_mtime))
+    if remote_mtime:
+        os.utime(part, (remote_mtime, remote_mtime))
     part.replace(dest)
     return True
