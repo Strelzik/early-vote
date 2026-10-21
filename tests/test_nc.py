@@ -4,6 +4,7 @@ import pandas as pd
 
 from earlyvote import nc
 from earlyvote.elections import GENERALS
+from earlyvote.tidy import MAX_DAYS_OUT, cumulate
 
 G = GENERALS[2022]  # Election Day 2022-11-08
 
@@ -28,9 +29,9 @@ def test_modes_parties_and_cumulative_grid():
         ["WAKE", "50", "LIB", "ONE-STOP", "10/22/2022", "10/22/2022", "CANCELLED"],
         ["WAKE", "50", "REP", "MAIL", "10/01/2022", "12/30/2022", "ACCEPTED"],
     ])
-    tidy = nc.cumulate(nc.daily_events(df), G, through=date(2022, 11, 8))
+    tidy = cumulate(nc.daily_events(df), G, date(2022, 11, 8), "NC", nc.SOURCE)
 
-    assert tidy["days_out"].max() == nc.MAX_DAYS_OUT
+    assert tidy["days_out"].max() == MAX_DAYS_OUT
     assert tidy["days_out"].min() == 0
     assert final_counts(tidy) == {
         ("in_person_early", "DEM"): 1,
@@ -50,7 +51,7 @@ def test_2008_layout_and_through_cutoff():
         ["DURHAM", "40", "DEM", "ONE STOP", "20081101", "20081101", "OK"],
     ])
     g = GENERALS[2008]
-    tidy = nc.cumulate(nc.daily_events(df), g, through=date(2008, 10, 25))
+    tidy = cumulate(nc.daily_events(df), g, date(2008, 10, 25), "NC", nc.SOURCE)
 
     assert tidy["days_out"].min() == g.days_out(date(2008, 10, 25))
     assert final_counts(tidy) == {("in_person_early", "DEM"): 1}

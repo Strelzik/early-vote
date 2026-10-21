@@ -8,13 +8,17 @@ split is registration or modeled.
 """
 
 import re
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
 
 from earlyvote import DATA
+from earlyvote.elections import General
 
 PROCESSED = DATA / "processed"
+MAX_DAYS_OUT = 120
+MIN_DAYS_OUT = -14
 STATEWIDE = "ALL"
 # States (and DC) where voters register by party. A party split anywhere else is modeled.
 PARTY_REGISTRATION = {
@@ -45,6 +49,30 @@ def validate(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def through(g: General, exported: date) -> date:
+    """Last complete day in a source exported on `exported`: the day before, at most two weeks past Election Day."""
+    return min(g.election_day + timedelta(days=-MIN_DAYS_OUT), exported - timedelta(days=1))
+
+
+def cumulate(daily: pd.DataFrame, g: General, last_day: date, state: str, source: str) -> pd.DataFrame:
+    """Daily new counts (county, party, age_band, mode, date, new) -> tidy cumulative counts
+    at every days-out from MAX_DAYS_OUT down to `last_day`. Earlier dates count at MAX_DAYS_OUT."""
+    last = g.days_out(last_day)
+    days_out = (pd.Timestamp(g.election_day) - daily["date"]).dt.days
+    daily = daily.assign(days_out=days_out.clip(upper=MAX_DAYS_OUT))
+
+    keys = ["county", "party", "age_band", "mode"]
+    wide = daily.pivot_table(index=keys, columns="days_out", values="new", aggfunc="sum", fill_value=0)
+    wide = wide.reindex(columns=range(MAX_DAYS_OUT, last - 1, -1), fill_value=0).cumsum(axis=1)
+    out = wide.stack().rename("count").reset_index()
+    out = out.assign(
+        state=state, cycle=g.cycle, election_type=g.kind, covid_outlier=g.covid_outlier,
+        as_of=(pd.Timestamp(g.election_day) - pd.to_timedelta(out["days_out"], unit="D")).dt.date,
+        party_basis="registration", source=source,
+    )
+    return finish(out)
+
+
 def finish(df: pd.DataFrame) -> pd.DataFrame:
     """Order columns, set dtypes, and validate a source's rows."""
     df = df[COLUMNS].astype({c: "category" for c in LABELS} | {"count": "int64", "cycle": "int64", "days_out": "int64"})
@@ -59,7 +87,7 @@ def write(df: pd.DataFrame, path: Path) -> Path:
     return path
 
 
-def load(sources: tuple[str, ...] = ("nc", "uf", "fl")) -> pd.DataFrame:
+def load(sources: tuple[str, ...] = ("nc", "pa", "uf", "fl")) -> pd.DataFrame:
     frames = [pd.read_parquet(p) for s in sources for p in sorted((PROCESSED / s).glob("*.parquet"))]
     return pd.concat(frames, ignore_index=True).astype({c: "category" for c in LABELS})
 
