@@ -2,7 +2,26 @@
 
 Early vote numbers by state, county, and party registration for the 2026 midterm, compared with past generals at the same number of days before Election Day.
 
-See [docs/data-sources.md](docs/data-sources.md) for what each source offers.
+**Live page: https://strelzik.github.io/early-vote/** (rebuilt twice a day by GitHub Actions).
+
+An independent, non-commercial, informational project with no ads, not affiliated with any data source. See [docs/data-sources.md](docs/data-sources.md) for what each source offers.
+
+## Data sources and credits
+
+- **UF Election Lab early vote tracker** by Michael McDonald, University of Florida: 2026 statewide and most county numbers, and 2020-2024 history. Licensed [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) (the 2022 tracker under CC BY). The copies in `data/raw/snapshots/uf-*` are unmodified files from the tracker.
+- **Michael McDonald, United States Elections Project:** 2014-2018 early vote spreadsheets.
+- **NC State Board of Elections:** voter-level absentee files (downloaded at build time; never committed, as they contain names and addresses).
+- **Pennsylvania Department of State:** mail ballot files on data.pa.gov.
+- **Florida Division of Elections:** daily county vote-by-mail and early voting reports (copies in `data/raw/snapshots/fl-*`).
+- **MIT Election Data and Science Lab (MEDSL):** precinct returns by vote mode.
+- **U.S. Election Assistance Commission:** Election Administration and Voting Survey.
+- **U.S. Census Bureau:** subcounty population estimates.
+
+The code is MIT licensed ([LICENSE](LICENSE)); each data source keeps its own terms.
+
+## Automation
+
+`.github/workflows/update.yml` runs at about 9:00 and 19:30 Eastern: it saves new snapshots and commits them, runs `build`, and publishes `reports/earlyvote.html` to GitHub Pages. Large downloads (NC voter files, EAVS, Census) and rebuilt tables are kept in the Actions cache between runs. MEDSL is not downloaded there, because the finals table is committed.
 
 ## Setup
 

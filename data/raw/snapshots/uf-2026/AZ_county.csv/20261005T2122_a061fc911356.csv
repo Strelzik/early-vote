@@ -1,0 +1,6 @@
+county,request_rep,request_dem,request_none,request_all,accept_rep,accept_dem,accept_none,accept_all,inperson_all,voted_all,voted_dem,voted_rep,voted_none,return_rate
+Coconino,16006,26540,19941,62487,13,73,24,110,0,110,73,13,24,0.18 %
+Maricopa,689845,625350,661479,1976674,0,0,0,0,0,0,0,0,0,0.00 %
+Pima,125170,200327,152570,478067,0,0,0,0,0,0,0,0,0,0.00 %
+Pinal,79401,52746,67102,199249,16,64,32,112,0,112,64,16,32,0.06 %
+Yuma,26590,24506,30134,81230,17,30,7,54,0,54,30,17,7,0.07 %

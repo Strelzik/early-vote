@@ -1,7 +1,17 @@
 .venv/
-data/
 reports/
 __pycache__/
 *.egg-info/
 .pytest_cache/
 .claude/settings.local.json
+
+# Data is rebuilt from sources, except the daily snapshots (sources that overwrite themselves,
+# so these copies are the only history) and the frozen past-finals table.
+# NC voter files hold names and addresses and must never be committed.
+data/*
+!data/raw/
+data/raw/*
+!data/raw/snapshots/
+!data/processed/
+data/processed/*
+!data/processed/finals_party.parquet
