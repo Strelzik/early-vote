@@ -13,10 +13,9 @@ import pandas as pd
 from earlyvote import DATA
 from earlyvote.elections import GENERALS, General
 from earlyvote.fetch import download_if_changed
-from earlyvote.tidy import COLUMNS, validate
+from earlyvote.tidy import PROCESSED, finish, write
 
 RAW = DATA / "raw" / "nc"
-PROCESSED = DATA / "processed" / "nc"
 BUCKET = "https://s3.amazonaws.com/dl.ncsbe.gov/ENRS"
 
 MAX_DAYS_OUT = 120
@@ -93,13 +92,11 @@ def cumulate(daily: pd.DataFrame, g: General, through: date) -> pd.DataFrame:
         as_of=(pd.Timestamp(g.election_day) - pd.to_timedelta(out["days_out"], unit="D")).dt.date,
         party_basis="registration", source="ncsbe_absentee",
     )
-    out["count"] = out["count"].astype("int64")
-    labels = ["state", "county", "election_type", "mode", "party", "party_basis", "age_band", "source"]
-    return validate(out[COLUMNS].astype({c: "category" for c in labels}))
+    return finish(out)
 
 
 def processed_path(g: General) -> Path:
-    return PROCESSED / f"{g.cycle}.parquet"
+    return PROCESSED / "nc" / f"{g.cycle}.parquet"
 
 
 def build(g: General) -> Path:
@@ -114,16 +111,7 @@ def build(g: General) -> Path:
     if exported <= g.election_day:
         # Live files list only mail ballots already returned, so requests would be undercounted.
         daily = daily[daily["mode"] != "mail_requested"]
-    tidy = cumulate(daily, g, through)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    part = out.with_name(out.name + ".part")
-    tidy.to_parquet(part, index=False)
-    part.replace(out)
-    return out
-
-
-def load() -> pd.DataFrame:
-    return pd.read_parquet(PROCESSED)
+    return write(cumulate(daily, g, through), out)
 
 
 def run(cycles: list[int] | None = None) -> list[Path]:
