@@ -21,7 +21,7 @@ The code is MIT licensed ([LICENSE](LICENSE)); each data source keeps its own te
 
 ## Automation
 
-`.github/workflows/update.yml` runs at about 9:00 and 19:30 Eastern: it saves new snapshots and commits them, runs `build`, and publishes `reports/earlyvote.html` to GitHub Pages. Large downloads (NC voter files, EAVS, Census) and rebuilt tables are kept in the Actions cache between runs. MEDSL is not downloaded there, because the finals table is committed.
+`.github/workflows/update.yml` runs three times a day (about 8:15, 14:15, and 19:45 Eastern; GitHub often starts scheduled runs late): it saves new snapshots and commits them, runs `build`, and publishes `reports/earlyvote.html` to GitHub Pages. Large downloads (NC voter files, EAVS, Census) and rebuilt tables are kept in the Actions cache between runs. MEDSL is not downloaded there, because the finals table is committed.
 
 ## Setup
 
@@ -36,7 +36,7 @@ python -m venv .venv
 .venv/Scripts/python -m earlyvote.cli snapshot
 ```
 
-Saves new copies of the UF Election Lab national and county CSVs and the Florida DOS county files to `data/raw/snapshots/<source>-<cycle>/`. These sources overwrite themselves daily, so history exists only if this runs. A copy is kept only when its content changed. The Windows scheduled task `earlyvote-snapshot` runs `snapshot` then `build` at 9:00 and 19:30 and logs to `data/logs/snapshot.log`.
+Saves new copies of the UF Election Lab national and county CSVs and the Florida DOS county files to `data/raw/snapshots/<source>-<cycle>/`. These sources overwrite themselves daily, so history exists only if this runs. A copy is kept only when its content changed. GitHub Actions runs this twice a day and commits the new copies (see Automation), so run `git pull` before working locally.
 
 ```bash
 .venv/Scripts/python -m earlyvote.cli backfill

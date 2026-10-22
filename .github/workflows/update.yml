@@ -1,9 +1,12 @@
 name: Update early vote page
 
 on:
+  # GitHub delays scheduled runs by hours at the top of the hour, so these sit at odd minutes,
+  # and three runs a day keep the page fresh even when one starts late. Times are UTC.
   schedule:
-    - cron: "0 13 * * *"   # about 9:00 Eastern
-    - cron: "30 23 * * *"  # about 19:30 Eastern
+    - cron: "17 12 * * *"  # 8:17 EDT / 7:17 EST
+    - cron: "17 18 * * *"  # 14:17 EDT / 13:17 EST
+    - cron: "47 23 * * *"  # 19:47 EDT / 18:47 EST
   workflow_dispatch:
 
 permissions:
