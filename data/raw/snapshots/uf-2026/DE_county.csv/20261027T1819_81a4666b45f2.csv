@@ -1,0 +1,4 @@
+county,request_all,accept_all,accept_dem,accept_rep,accept_none,request_dem,request_rep,request_none,accept_age_1,accept_age_2,accept_age_3,accept_age_4,request_age_1,request_age_2,request_age_3,request_age_4,voted_all,voted_dem,voted_rep,voted_none,voted_age_1,voted_age_2,voted_age_3,voted_age_4,return_rate
+KENT,13804,13804,7261,3965,2578,7261,3965,2578,343,716,4227,8518,343,716,4227,8518,13804,7261,3965,2578,343,716,4227,8518,100.00 %
+NEW CASTLE,33704,33704,22518,5483,5703,22518,5483,5703,1012,2321,10872,19499,1012,2321,10872,19499,33704,22518,5483,5703,1012,2321,10872,19499,100.00 %
+SUSSEX,44792,44792,20560,15678,8554,20560,15678,8554,494,1149,10704,32445,494,1149,10704,32445,44792,20560,15678,8554,494,1149,10704,32445,100.00 %
