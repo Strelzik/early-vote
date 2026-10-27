@@ -2,7 +2,7 @@
 
 Early vote numbers by state, county, and party registration for the 2026 midterm, compared with past generals at the same number of days before Election Day.
 
-**Live page: https://strelzik.github.io/early-vote/** (rebuilt twice a day by GitHub Actions).
+**Live page: https://strelzik.github.io/early-vote/** (rebuilt three times a day by GitHub Actions).
 
 An independent, non-commercial, informational project with no ads, not affiliated with any data source. See [docs/data-sources.md](docs/data-sources.md) for what each source offers.
 
@@ -21,7 +21,7 @@ The code is MIT licensed ([LICENSE](LICENSE)); each data source keeps its own te
 
 ## Automation
 
-`.github/workflows/update.yml` runs three times a day (about 8:15, 14:15, and 19:45 Eastern; GitHub often starts scheduled runs late): it saves new snapshots and commits them, runs `build`, and publishes `reports/earlyvote.html` to GitHub Pages. Large downloads (NC voter files, EAVS, Census) and rebuilt tables are kept in the Actions cache between runs. MEDSL is not downloaded there, because the finals table is committed.
+`.github/workflows/update.yml` runs three times a day (about 8:15, 14:15, and 19:45 Eastern; GitHub often starts scheduled runs late and sometimes skips them, so an hourly backup also updates whenever the last successful Pages deployment is 8 or more hours old): it saves new snapshots and commits them, runs `build`, and publishes `reports/earlyvote.html` to GitHub Pages. Large downloads (NC voter files, EAVS, Census) and rebuilt tables are kept in the Actions cache between runs. MEDSL is not downloaded there, because the finals table is committed.
 
 ## Setup
 
@@ -36,7 +36,7 @@ python -m venv .venv
 .venv/Scripts/python -m earlyvote.cli snapshot
 ```
 
-Saves new copies of the UF Election Lab national and county CSVs and the Florida DOS county files to `data/raw/snapshots/<source>-<cycle>/`. These sources overwrite themselves daily, so history exists only if this runs. A copy is kept only when its content changed. GitHub Actions runs this twice a day and commits the new copies (see Automation), so run `git pull` before working locally.
+Saves new copies of the UF Election Lab national and county CSVs and the Florida DOS county files to `data/raw/snapshots/<source>-<cycle>/`. These sources overwrite themselves daily, so history exists only if this runs. A copy is kept only when its content changed. GitHub Actions runs this three times a day and commits the new copies (see Automation), so run `git pull` before working locally.
 
 ```bash
 .venv/Scripts/python -m earlyvote.cli backfill

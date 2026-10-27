@@ -7,23 +7,53 @@ on:
     - cron: "17 12 * * *"  # 8:17 EDT / 7:17 EST
     - cron: "17 18 * * *"  # 14:17 EDT / 13:17 EST
     - cron: "47 23 * * *"  # 19:47 EDT / 18:47 EST
+    # GitHub sometimes skips scheduled runs outright. This hourly backup only updates
+    # when no run has succeeded in the last 8 hours.
+    - cron: "37 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
+  deployments: read
   pages: write
   id-token: write
-
-concurrency:
-  group: update
-  cancel-in-progress: false
 
 env:
   # Snapshot file names and "exported the day before" cutoffs use local time.
   TZ: America/New_York
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      stale: ${{ steps.age.outputs.stale }}
+    steps:
+      - id: age
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event.schedule }}" != "37 * * * *" ]; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Skipped backup runs also finish as "success", so age comes from the last
+          # successful Pages deployment, which only a real update makes.
+          last=1970-01-01T00:00:00Z
+          for id in $(gh api "repos/$GITHUB_REPOSITORY/deployments?environment=github-pages&per_page=10" -q '.[].id'); do
+            when=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -q 'map(select(.state == "success"))[0].created_at // empty')
+            if [ -n "$when" ]; then last=$when; break; fi
+          done
+          hours=$(( ($(date +%s) - $(date -d "$last" +%s)) / 3600 ))
+          echo "Last successful deployment $last ($hours hours ago)"
+          if [ "$hours" -ge 8 ]; then echo "stale=true"; else echo "stale=false"; fi >> "$GITHUB_OUTPUT"
+
   update:
+    needs: check
+    if: needs.check.outputs.stale == 'true'
+    # Per job, so an hourly check that finds nothing to do never displaces a queued update.
+    concurrency:
+      group: update
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment:
