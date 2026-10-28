@@ -1,0 +1,109 @@
+county,request_all,accept_all,inperson_all,voted_all,return_rate
+Adams County,2377,1272,4491,5763,53.51 %
+Alexander County,306,201,114,315,65.69 %
+Bond County,733,447,698,1145,60.98 %
+Boone County,2758,1655,2314,3969,60.01 %
+Brown County,225,169,214,383,75.11 %
+Bureau County,2250,1056,1176,2232,46.93 %
+Calhoun County,595,477,175,652,80.17 %
+Carroll County,1548,986,461,1447,63.70 %
+Cass County,972,821,434,1255,84.47 %
+Champaign County,20049,10299,10917,21216,51.37 %
+Christian County,1823,1117,1007,2124,61.27 %
+Clark County,785,480,830,1310,61.15 %
+Clay County,795,457,497,954,57.48 %
+Clinton County,1480,949,805,1754,64.12 %
+Coles County,2355,1384,2543,3927,58.77 %
+Cook County,228589,94064,137049,231113,41.15 %
+Crawford County,924,481,646,1127,52.06 %
+Cumberland County,958,779,435,1214,81.32 %
+DeKalb County,5010,3193,6922,10115,63.73 %
+DeWitt County,969,507,427,934,52.32 %
+Douglas County,1011,611,485,1096,60.44 %
+DuPage County,115183,50475,64135,114610,43.82 %
+Edgar County,1086,641,592,1233,59.02 %
+Edwards County,625,533,335,868,85.28 %
+Effingham County,1543,942,2112,3054,61.05 %
+Fayette County,775,471,785,1256,60.77 %
+Ford County,784,0,265,265, 0.00 %
+Franklin County,1831,963,1320,2283,52.59 %
+Fulton County,2837,1997,614,2611,70.39 %
+Gallatin County,307,167,249,416,54.40 %
+Greene County,1100,836,335,1171,76.00 %
+Grundy County,3377,2431,2536,4967,71.99 %
+Hamilton County,425,239,379,618,56.24 %
+Hancock County,1535,1078,373,1451,70.23 %
+Hardin County,262,154,175,329,58.78 %
+Henderson County,738,536,215,751,72.63 %
+Henry County,4466,2859,1024,3883,64.02 %
+Iroquois County,2342,1626,560,2186,69.43 %
+Jackson County,3759,2229,1931,4160,59.30 %
+Jasper County,491,302,459,761,61.51 %
+Jefferson County,2874,2097,1097,3194,72.96 %
+Jersey County,1322,810,1039,1849,61.27 %
+JoDaviess County,2498,1662,1193,2855,66.53 %
+Johnson County,1144,944,488,1432,82.52 %
+Kane County,48990,30414,34217,64631,62.08 %
+Kankakee County,8709,6335,4008,10343,72.74 %
+Kendall County,12297,6736,7492,14228,54.78 %
+Knox County,1923,1396,493,1889,72.59 %
+Lake County,76860,40347,42833,83180,52.49 %
+LaSalle County,11154,7562,3251,10813,67.80 %
+Lawrence County,670,491,340,831,73.28 %
+Lee County,2360,1451,1667,3118,61.48 %
+Livingston County,2060,1132,1068,2200,54.95 %
+Logan County,1878,1151,661,1812,61.29 %
+Macon County,6240,3460,6333,9793,55.45 %
+Macoupin County,3230,2155,1432,3587,66.72 %
+Madison County,19355,11396,15562,26958,58.88 %
+Marion County,1704,880,1346,2226,51.64 %
+Marshall County,986,620,366,986,62.88 %
+Mason County,868,571,376,947,65.78 %
+Massac County,1023,742,454,1196,72.53 %
+McDonough County,1836,1156,1496,2652,62.96 %
+McHenry County,37166,19254,19979,39233,51.81 %
+McLean County,6691,4584,3394,7978,68.51 %
+Menard County,1174,956,568,1524,81.43 %
+Mercer County,1255,766,350,1116,61.04 %
+Monroe County,2232,1486,2067,3553,66.58 %
+Montgomery County,1517,1007,2480,3487,66.38 %
+Morgan County,2950,2374,1147,3521,80.47 %
+Moultrie County,688,381,502,883,55.38 %
+Ogle County,2603,1502,2128,3630,57.70 %
+Peoria County,23499,13790,8316,22106,58.68 %
+Perry County,1023,627,575,1202,61.29 %
+Piatt County,1218,760,762,1522,62.40 %
+Pike County,649,359,523,882,55.32 %
+Pope County,250,171,221,392,68.40 %
+Pulaski County,489,318,117,435,65.03 %
+Putnam County,365,235,221,456,64.38 %
+Randolph County,1814,1243,587,1830,68.52 %
+Richland County,1554,1132,606,1738,72.84 %
+Rock Island County,20294,15612,2809,18421,76.93 %
+Saline County,2204,1667,913,2580,75.64 %
+Sangamon County,24412,14124,6599,20723,57.86 %
+Schuyler County,864,690,340,1030,79.86 %
+Scott County,388,119,123,242,30.67 %
+Shelby County,1149,675,562,1237,58.75 %
+Stark County,308,204,141,345,66.23 %
+St. Clair County,24665,14149,9374,23523,57.36 %
+Stephenson County,3458,1853,2601,4454,53.59 %
+Tazewell County,12202,7742,6119,13861,63.45 %
+Union County,858,520,603,1123,60.61 %
+Vermilion County,2216,1290,1103,2393,58.21 %
+Wabash County,597,291,338,629,48.74 %
+Warren County,1822,1400,666,2066,76.84 %
+Washington County,1136,844,320,1164,74.30 %
+Wayne County,776,488,492,980,62.89 %
+White County,733,482,460,942,65.76 %
+Whiteside County,3780,2305,1265,3570,60.98 %
+Will County,55229,28213,35102,63315,51.08 %
+Williamson County,4098,2558,2764,5322,62.42 %
+Winnebago County,12152,7815,4396,12211,64.31 %
+Woodford County,1894,1188,1294,2482,62.72 %
+City of Bloomington,9419,5702,4335,10037,60.54 %
+City of Chicago,246561,70354,94296,164650,28.53 %
+City of Danville,2576,2015,1121,3136,78.22 %
+City of East St Louis,3186,1454,249,1703,45.64 %
+City of Galesburg,2666,1517,1600,3117,56.90 %
+City of Rockford,11529,6219,5796,12015,53.94 %
