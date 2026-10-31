@@ -32,6 +32,9 @@ def get(url: str) -> bytes | None:
 
 
 def save(source: str, name: str, data: bytes, now: datetime) -> Path | None:
+    # Sources occasionally answer with an empty file for a few minutes; it holds no data and breaks parsing.
+    if not data.strip():
+        return None
     folder = SNAPSHOTS / source / name
     digest = hashlib.sha256(data).hexdigest()[:12]
     if folder.exists() and any(p.stem.endswith(digest) for p in folder.iterdir()):
